@@ -1,7 +1,7 @@
 {
   "name": "wcagai-backend",
-  "version": "3.0.0",
-  "description": "WCAG 2.2 AA Accessibility Scanner Backend with Stress Testing",
+  "version": "4.0.0",
+  "description": "WCAG 2.2 AA Keyword-Focused Accessibility Intelligence Platform - v4.0",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
