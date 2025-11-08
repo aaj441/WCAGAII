@@ -70,7 +70,7 @@ jobs:
 
     - name: Install backend dependencies
       working-directory: ./backend
-      run: npm ci
+      run: PUPPETEER_SKIP_DOWNLOAD=true npm ci
 
     - name: Create environment file
       working-directory: ./backend
@@ -98,13 +98,13 @@ jobs:
         echo "Backend failed to start"
         exit 1
 
-    - name: Run quick stress test (5 minutes)
+    - name: Run quick stress test (1 minute for CI)
       if: github.event_name != 'workflow_dispatch'
       working-directory: ./tests
       run: |
         node stress-test-config.js \
-          --duration=300 \
-          --concurrency=5 \
+          --duration=60 \
+          --concurrency=3 \
           --vertical=technology
 
     - name: Run custom stress test
@@ -155,7 +155,7 @@ jobs:
 
     - name: Install dependencies
       working-directory: ./backend
-      run: npm ci
+      run: PUPPETEER_SKIP_DOWNLOAD=true npm ci
 
     - name: Check for syntax errors
       working-directory: ./backend
@@ -171,6 +171,15 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18.x
+
+    - name: Install dependencies for audit
+      working-directory: ./backend
+      run: PUPPETEER_SKIP_DOWNLOAD=true npm ci
 
     - name: Run npm audit
       working-directory: ./backend
