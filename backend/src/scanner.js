@@ -1,34 +1,16 @@
-const puppeteer = require('puppeteer');
 const { AxePuppeteer } = require('@axe-core/puppeteer');
 const pino = require('pino');
+const { getBrowserPool } = require('./services/browserPool');
 
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info'
 });
 
-let browser = null;
 const MAX_RETRIES = 3;
 const SCAN_TIMEOUT = parseInt(process.env.SCAN_TIMEOUT) || 30000;
 
-// Initialize browser pool
-async function getBrowser() {
-  if (!browser || !browser.isConnected()) {
-    logger.info('Launching new browser instance');
-    browser = await puppeteer.launch({
-      headless: 'new',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu',
-        '--window-size=1920x1080'
-      ],
-      timeout: 30000
-    });
-  }
-  return browser;
-}
+// Get browser pool instance
+const browserPool = getBrowserPool();
 
 // SSRF Protection: Block private IPs
 function isPrivateIP(url) {
@@ -51,13 +33,15 @@ async function scanURL(url, options = {}) {
     throw new Error('Scanning private/internal URLs is not allowed for security reasons');
   }
 
+  let browser = null;
   let page = null;
   let retries = 0;
 
   while (retries < MAX_RETRIES) {
     try {
-      const browserInstance = await getBrowser();
-      page = await browserInstance.newPage();
+      // Acquire browser from pool
+      browser = await browserPool.acquire();
+      page = await browser.newPage();
 
       // Set viewport and user agent
       await page.setViewport({ width: 1920, height: 1080 });
@@ -86,6 +70,9 @@ async function scanURL(url, options = {}) {
 
       await page.close();
 
+      // Release browser back to pool
+      await browserPool.release(browser);
+
       // Format results
       return formatScanResults(url, axeResults, Date.now() - startTime);
 
@@ -101,6 +88,11 @@ async function scanURL(url, options = {}) {
         }
       }
 
+      if (browser) {
+        await browserPool.release(browser);
+        browser = null;
+      }
+
       if (retries >= MAX_RETRIES) {
         throw new Error(`Scan failed after ${MAX_RETRIES} retries: ${error.message}`);
       }
@@ -113,11 +105,13 @@ async function scanURL(url, options = {}) {
 
 async function scanHTML(html, options = {}) {
   const startTime = Date.now();
+  let browser = null;
   let page = null;
 
   try {
-    const browserInstance = await getBrowser();
-    page = await browserInstance.newPage();
+    // Acquire browser from pool
+    browser = await browserPool.acquire();
+    page = await browser.newPage();
 
     await page.setViewport({ width: 1920, height: 1080 });
 
@@ -142,6 +136,9 @@ async function scanHTML(html, options = {}) {
 
     await page.close();
 
+    // Release browser back to pool
+    await browserPool.release(browser);
+
     // Format results
     return formatScanResults('[HTML Content]', axeResults, Date.now() - startTime);
 
@@ -153,6 +150,11 @@ async function scanHTML(html, options = {}) {
         logger.error('Error closing page:', closeError);
       }
     }
+
+    if (browser) {
+      await browserPool.release(browser);
+    }
+
     throw error;
   }
 }
@@ -241,12 +243,17 @@ async function getHealthStatus() {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     memory: process.memoryUsage(),
-    puppeteerReady: false
+    puppeteerReady: false,
+    browserPool: null
   };
 
   try {
-    const browserInstance = await getBrowser();
-    health.puppeteerReady = browserInstance.isConnected();
+    // Get browser pool stats
+    health.browserPool = browserPool.getStats();
+    health.puppeteerReady = health.browserPool.poolSize > 0 || health.browserPool.activeCount > 0;
+
+    // Perform pool health check
+    await browserPool.healthCheck();
   } catch (error) {
     health.status = 'unhealthy';
     health.puppeteerReady = false;
@@ -256,16 +263,9 @@ async function getHealthStatus() {
   return health;
 }
 
-// Cleanup on process exit
-process.on('exit', async () => {
-  if (browser) {
-    await browser.close();
-  }
-});
-
 module.exports = {
   scanURL,
   scanHTML,
   getHealthStatus,
-  getBrowser
+  browserPool
 };

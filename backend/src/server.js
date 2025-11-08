@@ -3,7 +3,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const pino = require('pino');
-const { scanURL, scanHTML, getHealthStatus } = require('./scanner');
+const { scanURL, scanHTML, getHealthStatus, browserPool } = require('./scanner');
+const { ssrfProtection } = require('./middleware/ssrfProtection');
+const { manager: circuitBreakerManager } = require('./services/circuitBreaker');
 
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
@@ -75,8 +77,35 @@ app.get('/health/live', (req, res) => {
   });
 });
 
-// Main scan endpoint
-app.post('/api/scan', async (req, res) => {
+// Browser Pool Stats endpoint
+app.get('/api/pool/stats', (req, res) => {
+  try {
+    const stats = browserPool.getStats();
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to get browser pool stats',
+      message: error.message
+    });
+  }
+});
+
+// Circuit Breaker Status endpoint
+app.get('/api/circuit-breakers', (req, res) => {
+  try {
+    const status = circuitBreakerManager.getAllStatus();
+    const metrics = circuitBreakerManager.getAllMetrics();
+    res.json({ status, metrics });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to get circuit breaker status',
+      message: error.message
+    });
+  }
+});
+
+// Main scan endpoint with SSRF protection
+app.post('/api/scan', ssrfProtection, async (req, res) => {
   const { type, input, options = {} } = req.body;
 
   // Validation
