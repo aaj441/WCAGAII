@@ -83,6 +83,24 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // Prometheus Metrics
 app.get('/metrics', metricsHandler);
 
+// v4.0-LITE Keyword-Based Scanning Routes (Working, No External APIs)
+try {
+  const keywordRoutesLite = require('./routes/keywordScanLite');
+  app.use('/api/v4-lite', keywordRoutesLite);
+  logger.info('✨ v4.0-LITE routes loaded (mock mode - no external APIs needed)');
+} catch (error) {
+  logger.warn('⚠️  v4.0-lite routes not available:', error.message);
+}
+
+// v4.0 Full Routes (Requires External APIs: SERP, Redis, DB)
+try {
+  const keywordRoutes = require('./routes/keywordScan');
+  app.use('/api/v4', keywordRoutes);
+  logger.info('✨ v4.0 FULL routes loaded (requires external APIs)');
+} catch (error) {
+  logger.warn('⚠️  v4.0 full routes disabled (missing: ioredis, SERP_API_KEY, etc)');
+}
+
 // Health check endpoint
 app.get('/health', async (req, res) => {
   try {
