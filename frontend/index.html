@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="WCAG 2.2 AA Accessibility Scanner - Free online tool to check website accessibility compliance">
+    <title>WCAGAI v3.0 - WCAG 2.2 AA Accessibility Scanner</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <header role="banner">
+        <div class="container">
+            <h1>WCAGAI v3.0</h1>
+            <p class="tagline">Professional WCAG 2.2 AA Accessibility Scanner</p>
+        </div>
+    </header>
+
+    <main id="main-content" role="main">
+        <div class="container">
+            <!-- Scanner Section -->
+            <section aria-labelledby="scanner-heading">
+                <h2 id="scanner-heading">Scan Your Website</h2>
+
+                <form id="scan-form" class="scan-form">
+                    <div class="form-group">
+                        <label for="scan-type">Scan Type:</label>
+                        <div class="radio-group" role="radiogroup" aria-labelledby="scan-type">
+                            <div class="radio-option">
+                                <input type="radio" id="type-url" name="scanType" value="url" checked>
+                                <label for="type-url">URL</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" id="type-html" name="scanType" value="html">
+                                <label for="type-html">HTML Code</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="url-input-group">
+                        <label for="url-input">Website URL:</label>
+                        <input
+                            type="url"
+                            id="url-input"
+                            name="url"
+                            placeholder="https://example.com"
+                            aria-describedby="url-hint"
+                            required
+                        >
+                        <small id="url-hint" class="hint">Enter the full URL including https://</small>
+                    </div>
+
+                    <div class="form-group hidden" id="html-input-group">
+                        <label for="html-input">HTML Code:</label>
+                        <textarea
+                            id="html-input"
+                            name="html"
+                            rows="10"
+                            placeholder="Paste your HTML code here..."
+                            aria-describedby="html-hint"
+                        ></textarea>
+                        <small id="html-hint" class="hint">Paste the HTML code you want to analyze</small>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="scan-button">
+                        <span class="btn-text">Scan Now</span>
+                        <span class="spinner hidden" aria-hidden="true"></span>
+                    </button>
+                </form>
+            </section>
+
+            <!-- Results Section -->
+            <section id="results-section" class="hidden" aria-labelledby="results-heading">
+                <h2 id="results-heading">Scan Results</h2>
+
+                <!-- Summary Cards -->
+                <div class="summary-cards">
+                    <div class="card">
+                        <h3>Compliance Score</h3>
+                        <div class="score" id="compliance-score">--</div>
+                        <p class="card-subtitle">Overall Rating</p>
+                    </div>
+
+                    <div class="card">
+                        <h3>Violations</h3>
+                        <div class="count count-error" id="violations-count">0</div>
+                        <p class="card-subtitle">Issues Found</p>
+                    </div>
+
+                    <div class="card">
+                        <h3>Passes</h3>
+                        <div class="count count-success" id="passes-count">0</div>
+                        <p class="card-subtitle">Tests Passed</p>
+                    </div>
+
+                    <div class="card">
+                        <h3>Scan Time</h3>
+                        <div class="time" id="scan-time">--</div>
+                        <p class="card-subtitle">Duration</p>
+                    </div>
+                </div>
+
+                <!-- Severity Breakdown -->
+                <div class="severity-breakdown">
+                    <h3>Violations by Severity</h3>
+                    <div class="severity-bars">
+                        <div class="severity-item">
+                            <label>Critical</label>
+                            <div class="bar-container">
+                                <div class="bar bar-critical" id="bar-critical" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                <span class="bar-count" id="count-critical">0</span>
+                            </div>
+                        </div>
+                        <div class="severity-item">
+                            <label>Serious</label>
+                            <div class="bar-container">
+                                <div class="bar bar-serious" id="bar-serious" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                <span class="bar-count" id="count-serious">0</span>
+                            </div>
+                        </div>
+                        <div class="severity-item">
+                            <label>Moderate</label>
+                            <div class="bar-container">
+                                <div class="bar bar-moderate" id="bar-moderate" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                <span class="bar-count" id="count-moderate">0</span>
+                            </div>
+                        </div>
+                        <div class="severity-item">
+                            <label>Minor</label>
+                            <div class="bar-container">
+                                <div class="bar bar-minor" id="bar-minor" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                <span class="bar-count" id="count-minor">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Violations -->
+                <div class="violations-section">
+                    <h3>Detailed Violations</h3>
+                    <div id="violations-list"></div>
+                </div>
+
+                <!-- Export Options -->
+                <div class="export-section">
+                    <button class="btn btn-secondary" id="export-json">Export as JSON</button>
+                    <button class="btn btn-secondary" id="export-csv">Export as CSV</button>
+                </div>
+            </section>
+
+            <!-- Error Message -->
+            <div id="error-message" class="error-message hidden" role="alert"></div>
+        </div>
+    </main>
+
+    <footer role="contentinfo">
+        <div class="container">
+            <p>&copy; 2024 WCAGAI v3.0 | Powered by <a href="https://www.deque.com/axe/" target="_blank" rel="noopener">axe-core</a></p>
+            <p>WCAG 2.2 Level AA Compliance Scanner</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

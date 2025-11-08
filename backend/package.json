@@ -1,0 +1,31 @@
+{
+  "name": "wcagai-backend",
+  "version": "3.0.0",
+  "description": "WCAG 2.2 AA Accessibility Scanner Backend with Stress Testing",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "node src/stress-test.js",
+    "stress-test": "node tests/stress-test-config.js",
+    "stress-test-long": "node tests/stress-test-config.js --duration=3600"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4",
+    "puppeteer": "^21.5.2",
+    "axe-core": "^4.8.2",
+    "@axe-core/puppeteer": "^4.8.1",
+    "dotenv": "^16.3.1",
+    "pino": "^8.16.2",
+    "pino-pretty": "^10.2.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

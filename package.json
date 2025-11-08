@@ -1,0 +1,40 @@
+{
+  "name": "wcagai",
+  "version": "3.0.0",
+  "description": "WCAG 2.2 AA Accessibility Scanner with Stress Testing - Complete Production System",
+  "main": "backend/src/server.js",
+  "scripts": {
+    "start": "cd backend && npm start",
+    "dev": "cd backend && npm run dev",
+    "test": "cd backend && npm test",
+    "stress-test": "cd tests && ./run-stress-test.sh 300 5 all",
+    "stress-test-long": "cd tests && ./run-stress-test.sh 3600 5 all",
+    "install-backend": "cd backend && npm install",
+    "install-all": "npm run install-backend",
+    "clean": "rm -rf backend/node_modules frontend/node_modules",
+    "lint": "echo 'Linting backend code...' && cd backend && node -c src/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/wcagai.git"
+  },
+  "keywords": [
+    "accessibility",
+    "wcag",
+    "wcag2.2",
+    "a11y",
+    "axe-core",
+    "puppeteer",
+    "scanner",
+    "compliance",
+    "stress-test"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "devDependencies": {},
+  "private": false
+}
