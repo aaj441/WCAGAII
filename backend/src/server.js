@@ -3,9 +3,15 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const pino = require('pino');
+const swaggerUi = require('swagger-ui-express');
 const { scanURL, scanHTML, getHealthStatus, browserPool } = require('./scanner');
 const { ssrfProtection } = require('./middleware/ssrfProtection');
 const { manager: circuitBreakerManager } = require('./services/circuitBreaker');
+const { correlationIdMiddleware } = require('./middleware/correlationId');
+const { validateRequest, ScanRequestSchema, BulkScanRequestSchema } = require('./schemas/validation');
+const { metricsHandler, httpRequestDuration, scanCounter, scanDuration, updateBrowserPoolMetrics } = require('./services/metrics');
+const { auditLogger } = require('./services/auditLogger');
+const swaggerSpec = require('../swagger');
 
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
@@ -31,24 +37,62 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Request logging
+// Correlation ID for request tracing
+app.use(correlationIdMiddleware);
+
+// Request logging with metrics
 app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
+    const duration = (Date.now() - start) / 1000;
+
+    // Log request
     logger.info({
+      correlationId: req.correlationId,
       method: req.method,
       url: req.url,
       status: res.statusCode,
-      duration: Date.now() - start
+      duration: duration * 1000
     });
+
+    // Record metrics
+    httpRequestDuration.observe(
+      { method: req.method, route: req.path, status: res.statusCode },
+      duration
+    );
+
+    // Audit log API access
+    if (req.path.startsWith('/api/')) {
+      auditLogger.logApiAccess({
+        correlationId: req.correlationId,
+        method: req.method,
+        path: req.path,
+        status: res.statusCode,
+        duration: duration * 1000,
+        ip: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+    }
   });
   next();
 });
+
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// Prometheus Metrics
+app.get('/metrics', metricsHandler);
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
   try {
     const health = await getHealthStatus();
+
+    // Update browser pool metrics
+    if (health.browserPool) {
+      updateBrowserPoolMetrics(health.browserPool);
+    }
+
     res.status(health.status === 'healthy' ? 200 : 503).json(health);
   } catch (error) {
     res.status(503).json({
@@ -104,8 +148,8 @@ app.get('/api/circuit-breakers', (req, res) => {
   }
 });
 
-// Main scan endpoint with SSRF protection
-app.post('/api/scan', ssrfProtection, async (req, res) => {
+// Main scan endpoint with SSRF protection and validation
+app.post('/api/scan', validateRequest(ScanRequestSchema), ssrfProtection, async (req, res) => {
   const { type, input, options = {} } = req.body;
 
   // Validation
@@ -137,21 +181,55 @@ app.post('/api/scan', ssrfProtection, async (req, res) => {
     const scanTime = Date.now() - startTime;
 
     logger.info({
+      correlationId: req.correlationId,
       scanId,
       violations: result.violations.length,
       scanTime
     }, 'Scan completed');
 
+    // Record metrics
+    scanCounter.inc({ type, status: 'success' });
+    scanDuration.observe({ type, status: 'success' }, scanTime / 1000);
+
+    // Audit log
+    await auditLogger.logScan({
+      correlationId: req.correlationId,
+      scanId,
+      type,
+      input: type === 'url' ? input : '[HTML]',
+      violations: result.violations.length,
+      complianceScore: result.summary.complianceScore,
+      scanTime,
+      ip: req.ip
+    });
+
     res.json({
       scanId,
+      correlationId: req.correlationId,
       ...result,
       scanTime
     });
 
   } catch (error) {
-    logger.error({ scanId, error: error.message }, 'Scan failed');
+    logger.error({ correlationId: req.correlationId, scanId, error: error.message }, 'Scan failed');
+
+    // Record metrics
+    scanCounter.inc({ type, status: 'error' });
+    scanDuration.observe({ type, status: 'error' }, (Date.now() - Date.now()) / 1000);
+
+    // Audit log error
+    await auditLogger.logScan({
+      correlationId: req.correlationId,
+      scanId,
+      type,
+      status: 'ERROR',
+      error: error.message,
+      ip: req.ip
+    });
+
     res.status(500).json({
       scanId,
+      correlationId: req.correlationId,
       error: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -159,7 +237,7 @@ app.post('/api/scan', ssrfProtection, async (req, res) => {
 });
 
 // Bulk scan endpoint (for stress testing)
-app.post('/api/scan/bulk', async (req, res) => {
+app.post('/api/scan/bulk', validateRequest(BulkScanRequestSchema), async (req, res) => {
   const { urls, options = {} } = req.body;
 
   if (!Array.isArray(urls) || urls.length === 0) {
