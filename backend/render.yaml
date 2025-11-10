@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: wcagai
+    env: node
+    region: oregon # or frankfurt for EU
+    plan: starter # or free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: LOG_LEVEL
+        value: info
+      - key: POOL_SIZE
+        value: 5
+      - key: POOL_MAX_USES
+        value: 50
+    autoDeploy: true
