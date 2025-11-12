@@ -120,7 +120,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
                   with:
-                    name: stress-test-reports-node-${{ matrix.node-version }}      
+                            name: stress-test-reports-node-${{ matrix.node-version }}
                     
         path: docs/stress-test-report-*.md
         retention-days: 30
@@ -142,8 +142,7 @@ jobs:
                     
         path: backend/*.log
         retention-days: 7
-
-  lint:
+        
     runs-on: ubuntu-latest
 
     steps:
