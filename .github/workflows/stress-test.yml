@@ -142,7 +142,7 @@ jobs:
                     
         path: backend/*.log
         retention-days: 7
-        
+        lint:  
     runs-on: ubuntu-latest
 
     steps:
